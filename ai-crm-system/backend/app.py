@@ -133,7 +133,195 @@ def manage_customers():
         
         return jsonify({'success': True, 'customer_id': customer_id, 'lead_score': lead_score})
 
-# ... rest of the API endpoints remain the same ...
+@app.route('/api/customers/<int:customer_id>', methods=['GET', 'PUT', 'DELETE', 'OPTIONS'])
+def customer_detail(customer_id):
+    """Customer detail endpoint"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    if request.method == 'GET':
+        customer = db.get_customer(customer_id)
+        if customer:
+            return jsonify(customer)
+        return jsonify({'error': 'Customer not found'}), 404
+    
+    elif request.method == 'PUT':
+        data = request.get_json()
+        success = db.update_customer(customer_id, data)
+        if success:
+            # Recalculate lead score
+            customer = db.get_customer(customer_id)
+            lead_score = lead_scorer.calculate_score(customer)
+            db.update_customer_score(customer_id, lead_score)
+            return jsonify({'success': True, 'lead_score': lead_score})
+        return jsonify({'error': 'Update failed'}), 400
+    
+    elif request.method == 'DELETE':
+        success = db.delete_customer(customer_id)
+        if success:
+            return jsonify({'success': True})
+        return jsonify({'error': 'Delete failed'}), 400
+
+@app.route('/api/interactions', methods=['GET', 'POST', 'OPTIONS'])
+def manage_interactions():
+    """Interactions management endpoint"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    if request.method == 'GET':
+        customer_id = request.args.get('customer_id')
+        if customer_id:
+            interactions = db.get_customer_interactions(int(customer_id))
+        else:
+            interactions = db.get_all_interactions()
+        return jsonify(interactions)
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        interaction_id = db.add_interaction(data)
+        
+        # Update customer engagement
+        if data.get('customer_id'):
+            customer = db.get_customer(data['customer_id'])
+            interactions = db.get_customer_interactions(data['customer_id'])
+            lead_score = lead_scorer.calculate_score(customer, interactions)
+            db.update_customer_score(data['customer_id'], lead_score)
+        
+        return jsonify({'success': True, 'interaction_id': interaction_id})
+
+@app.route('/api/dashboard/analytics', methods=['GET', 'OPTIONS'])
+def dashboard_analytics():
+    """Dashboard analytics endpoint"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    customers = db.get_all_customers()
+    interactions = db.get_recent_interactions(10)
+    
+    # Calculate metrics
+    total_customers = len(customers)
+    active_leads = len([c for c in customers if c.get('status') in ['lead', 'qualified', 'interested']])
+    converted_customers = len([c for c in customers if c.get('status') == 'customer'])
+    conversion_rate = (converted_customers / total_customers * 100) if total_customers > 0 else 0
+    
+    # Calculate revenue
+    monthly_revenue = sum([c.get('budget', 0) for c in customers if c.get('status') == 'customer'])
+    
+    # Get top leads
+    top_leads = sorted(customers, key=lambda x: x.get('lead_score', 0), reverse=True)[:5]
+    
+    # Sales forecast
+    forecast_data = sales_forecaster.get_quick_forecast()
+    
+    analytics = {
+        'total_customers': total_customers,
+        'active_leads': active_leads,
+        'conversion_rate': round(conversion_rate, 1),
+        'monthly_revenue': monthly_revenue,
+        'top_leads': top_leads,
+        'recent_interactions': interactions,
+        'sales_forecast': forecast_data
+    }
+    
+    return jsonify(analytics)
+
+@app.route('/api/chatbot/message', methods=['POST', 'OPTIONS'])
+def chatbot_message():
+    """Chatbot message endpoint"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    data = request.get_json()
+    message = data.get('message', '')
+    customer_id = data.get('customer_id')
+    
+    # Get chatbot response
+    response = chatbot.get_response(message)
+    
+    # Log interaction if customer_id provided
+    if customer_id:
+        db.add_interaction({
+            'customer_id': customer_id,
+            'type': 'chatbot',
+            'channel': 'web',
+            'notes': f"User: {message}\nBot: {response['message']}"
+        })
+    
+    return jsonify(response)
+
+@app.route('/api/ai/analyze-lead', methods=['POST', 'OPTIONS'])
+def analyze_lead():
+    """AI lead analysis endpoint"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    data = request.get_json()
+    customer_id = data.get('customer_id')
+    
+    if not customer_id:
+        return jsonify({'error': 'customer_id required'}), 400
+    
+    customer = db.get_customer(customer_id)
+    interactions = db.get_customer_interactions(customer_id)
+    
+    if not customer:
+        return jsonify({'error': 'Customer not found'}), 404
+    
+    # Get AI insights
+    insights = ai_services.analyze_lead(customer, interactions)
+    
+    return jsonify(insights)
+
+@app.route('/api/opportunities', methods=['GET', 'POST', 'OPTIONS'])
+def manage_opportunities():
+    """Opportunities management endpoint"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    if request.method == 'GET':
+        customer_id = request.args.get('customer_id')
+        if customer_id:
+            opportunities = db.get_customer_opportunities(int(customer_id))
+        else:
+            opportunities = db.get_all_opportunities()
+        return jsonify(opportunities)
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        opportunity_id = db.add_opportunity(data)
+        return jsonify({'success': True, 'opportunity_id': opportunity_id})
+
+@app.route('/api/reports/sales', methods=['GET', 'OPTIONS'])
+def sales_report():
+    """Sales report endpoint"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    customers = db.get_all_customers()
+    interactions = db.get_all_interactions()
+    
+    # Generate report
+    report = {
+        'total_revenue': sum([c.get('budget', 0) for c in customers if c.get('status') == 'customer']),
+        'pipeline_value': sum([c.get('budget', 0) for c in customers if c.get('status') in ['qualified', 'interested']]),
+        'customers_by_status': {},
+        'revenue_by_industry': {},
+        'conversion_funnel': {}
+    }
+    
+    # Group by status
+    for customer in customers:
+        status = customer.get('status', 'unknown')
+        report['customers_by_status'][status] = report['customers_by_status'].get(status, 0) + 1
+    
+    # Group by industry
+    for customer in customers:
+        if customer.get('status') == 'customer':
+            industry = customer.get('industry', 'Other')
+            revenue = customer.get('budget', 0)
+            report['revenue_by_industry'][industry] = report['revenue_by_industry'].get(industry, 0) + revenue
+    
+    return jsonify(report)
 
 if __name__ == '__main__':
     # Start workflow scheduler
