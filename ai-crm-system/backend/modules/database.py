@@ -249,6 +249,7 @@ class Database:
         
         conn.commit()
         conn.close()
+        return True
     
     # Interaction operations
     def add_interaction(self, data: Dict) -> int:

@@ -118,6 +118,14 @@ def manage_customers():
     
     elif request.method == 'POST':
         data = request.get_json()
+        
+        # Convert budget to float if it exists
+        if 'budget' in data and data['budget']:
+            try:
+                data['budget'] = float(data['budget'])
+            except (ValueError, TypeError):
+                data['budget'] = 0
+        
         customer_id = db.add_customer(data)
         
         # Score the lead immediately
@@ -236,7 +244,7 @@ def chatbot_message():
     customer_id = data.get('customer_id')
     
     # Get chatbot response
-    response = chatbot.get_response(message)
+    response = chatbot.process_message(message)
     
     # Log interaction if customer_id provided
     if customer_id:
@@ -244,7 +252,7 @@ def chatbot_message():
             'customer_id': customer_id,
             'type': 'chatbot',
             'channel': 'web',
-            'notes': f"User: {message}\nBot: {response['message']}"
+            'notes': f"User: {message}\nBot: {response.get('message', '')}"
         })
     
     return jsonify(response)
@@ -268,7 +276,7 @@ def analyze_lead():
         return jsonify({'error': 'Customer not found'}), 404
     
     # Get AI insights
-    insights = ai_services.analyze_lead(customer, interactions)
+    insights = ai_services.generate_customer_insights(customer)
     
     return jsonify(insights)
 
