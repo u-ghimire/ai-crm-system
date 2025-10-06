@@ -60,7 +60,10 @@ class LeadScoring:
         scores['industry_fit'] = self._calculate_industry_score(customer_data.get('industry', 'other'))
         
         # Company Size Score (0-100)
-        scores['company_size'] = self._calculate_company_size_score(customer_data.get('company', ''))
+        scores['company_size'] = self._calculate_company_size_score(
+            customer_data.get('company', ''),
+            customer_data.get('website', None)
+        )
         
         # Engagement Score (0-100)
         scores['engagement'] = self._calculate_engagement_score(interaction_history or [])
@@ -144,14 +147,44 @@ class LeadScoring:
         """Calculate score based on industry"""
         return self.industry_scores.get(industry.lower(), 55)
     
-    def _calculate_company_size_score(self, company: str) -> float:
-        """Estimate company size score based on company name/info"""
+    def _calculate_company_size_score(self, company: str, website: str = None) -> float:
+        """Estimate company size score using OpenAI API, fallback to heuristic if needed"""
+        import openai
         if not company:
             return 30
         
-        # Simple heuristic based on company name patterns
-        company_lower = company.lower()
+        # Try AI-powered estimation first
+        prompt = f"""
+Estimate the company size category for the following company. Respond with one of: 'Large Enterprise', 'Medium Business', 'Small Business', or 'Startup'.
+Company Name: {company}
+"""
+        if website:
+            prompt += f"\nWebsite: {website}"
         
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a business analyst."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=10,
+                temperature=0
+            )
+            answer = response.choices[0].message['content'].strip().lower()
+            if 'large' in answer:
+                return 90
+            elif 'medium' in answer:
+                return 70
+            elif 'small' in answer:
+                return 50
+            elif 'startup' in answer:
+                return 40
+        except Exception:
+            pass  # Fall back to heuristic
+        
+        # Fallback to heuristic
+        company_lower = company.lower()
         if any(word in company_lower for word in ['enterprise', 'global', 'international', 'corporation']):
             return 90
         elif any(word in company_lower for word in ['inc', 'llc', 'ltd', 'company']):
