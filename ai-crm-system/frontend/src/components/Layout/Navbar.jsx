@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, User, Bell } from 'lucide-react'
-import toast from 'react-hot-toast'
+import NotificationsDropdown from './NotificationsDropdown'
 
 const Navbar = () => {
   const { user, logout } = useAuth()
@@ -16,7 +16,6 @@ const Navbar = () => {
 
   const handleNotificationClick = () => {
     setShowNotifications(!showNotifications)
-    toast.success('Notifications feature coming soon!')
   }
 
   return (
@@ -27,14 +26,21 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center space-x-4">
-          <button 
-            onClick={handleNotificationClick}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
-            title="Notifications"
-          >
-            <Bell className="w-5 h-5 text-gray-600" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
+          <div className="relative">
+            <button 
+              onClick={handleNotificationClick}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5 text-gray-600" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+
+            <NotificationsDropdown 
+              isOpen={showNotifications}
+              onClose={() => setShowNotifications(false)}
+            />
+          </div>
 
           <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
             <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">

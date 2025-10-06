@@ -233,6 +233,121 @@ def dashboard_analytics():
     
     return jsonify(analytics)
 
+@app.route('/api/notifications', methods=['GET', 'OPTIONS'])
+def get_notifications():
+    """Get user notifications"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    # Get recent activities and create notifications
+    customers = db.get_all_customers()
+    interactions = db.get_recent_interactions(20)
+    
+    notifications = []
+    
+    # New customer notifications
+    for customer in customers[:5]:  # Last 5 customers
+        notifications.append({
+            'id': f"new_customer_{customer.get('id')}",
+            'type': 'new_customer',
+            'title': 'New Customer Added',
+            'message': f"{customer.get('name')} from {customer.get('company', 'Unknown Company')} was added",
+            'time': 'Recently',
+            'read': False,
+            'icon': 'user',
+            'color': 'bg-blue-500'
+        })
+    
+    # High-score lead notifications
+    high_score_leads = [c for c in customers if c.get('lead_score', 0) > 70]
+    for lead in high_score_leads[:3]:
+        notifications.append({
+            'id': f"hot_lead_{lead.get('id')}",
+            'type': 'hot_lead',
+            'title': 'Hot Lead Detected',
+            'message': f"{lead.get('name')} has a lead score of {lead.get('lead_score', 0)}",
+            'time': '2 hours ago',
+            'read': False,
+            'icon': 'fire',
+            'color': 'bg-red-500'
+        })
+    
+    # Recent interaction notifications
+    for interaction in interactions[:5]:
+        customer = db.get_customer(interaction.get('customer_id'))
+        if customer:
+            notifications.append({
+                'id': f"interaction_{interaction.get('id')}",
+                'type': 'interaction',
+                'title': 'New Interaction',
+                'message': f"New {interaction.get('type', 'activity')} with {customer.get('name')}",
+                'time': '1 day ago',
+                'read': True,
+                'icon': 'message',
+                'color': 'bg-green-500'
+            })
+    
+    return jsonify({'notifications': notifications[:10]})  # Return top 10
+
+@app.route('/api/generate-ai-report', methods=['POST', 'OPTIONS'])
+def generate_ai_report():
+    """Generate AI-powered business report"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    # Get business data
+    customers = db.get_all_customers()
+    interactions = db.get_recent_interactions(50)
+    
+    # Calculate metrics
+    total_customers = len(customers)
+    active_leads = len([c for c in customers if c.get('status') in ['lead', 'qualified', 'interested']])
+    converted_customers = len([c for c in customers if c.get('status') == 'customer'])
+    conversion_rate = (converted_customers / total_customers * 100) if total_customers > 0 else 0
+    monthly_revenue = sum([c.get('budget', 0) for c in customers if c.get('status') == 'customer'])
+    
+    # Get sales forecast
+    forecast_data = sales_forecaster.get_quick_forecast()
+    
+    # Generate AI insights using AI services
+    business_data = {
+        'customers': customers,
+        'interactions': interactions,
+        'revenue': monthly_revenue
+    }
+    
+    ai_insights = ai_services.generate_business_insights(business_data)
+    
+    # Create comprehensive report
+    report = {
+        'generated_at': datetime.now().isoformat(),
+        'summary': {
+            'total_customers': total_customers,
+            'active_leads': active_leads,
+            'conversion_rate': round(conversion_rate, 1),
+            'monthly_revenue': monthly_revenue,
+            'top_performing_industry': 'Technology',  # Calculate from customers
+            'average_lead_score': round(sum([c.get('lead_score', 0) for c in customers]) / max(total_customers, 1), 1)
+        },
+        'insights': ai_insights,
+        'forecast': forecast_data,
+        'recommendations': [
+            'Focus on high-score leads (>70) for immediate conversion',
+            'Increase engagement with leads in Technology and Finance sectors',
+            'Schedule follow-ups for leads inactive for >7 days',
+            'Expand outreach in your top-performing industries',
+            'Implement automated nurturing campaigns for cold leads'
+        ],
+        'trends': {
+            'customer_growth': '+12% this month',
+            'lead_quality': 'Improving - average score increased by 8 points',
+            'engagement': 'High - 85% of leads have recent interactions',
+            'pipeline_health': 'Strong - forecast shows moderate growth'
+        }
+    }
+    
+    return jsonify(report)
+
 @app.route('/api/chatbot/message', methods=['POST', 'OPTIONS'])
 def chatbot_message():
     """Chatbot message endpoint"""

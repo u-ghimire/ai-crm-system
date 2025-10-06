@@ -4,6 +4,7 @@ import DashboardStats from '../components/Dashboard/DashboardStats'
 import SalesForecast from '../components/Dashboard/SalesForecast'
 import TopLeads from '../components/Dashboard/TopLeads'
 import RecentInteractions from '../components/Dashboard/RecentInteractions'
+import AIReportModal from '../components/Dashboard/AIReportModal'
 import { dashboardAPI } from '../api/client'
 import { Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -12,6 +13,8 @@ const Dashboard = () => {
   const [analytics, setAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [showReport, setShowReport] = useState(false)
+  const [aiReport, setAiReport] = useState(null)
 
   useEffect(() => {
     fetchAnalytics()
@@ -30,24 +33,22 @@ const Dashboard = () => {
 
   const handleGenerateAIReport = async () => {
     setGenerating(true)
-    toast.loading('Generating AI-powered business report...')
+    const loadingToast = toast.loading('Generating AI-powered business report...')
     
     try {
-      // Simulate AI report generation
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      const response = await dashboardAPI.generateAIReport()
+      setAiReport(response.data)
+      setShowReport(true)
       
-      toast.dismiss()
+      toast.dismiss(loadingToast)
       toast.success('AI Report generated successfully!', {
-        duration: 4000,
+        duration: 3000,
       })
       
-      // In a real implementation, this would call an API endpoint
-      // const report = await dashboardAPI.generateAIReport()
-      // Then display or download the report
-      
     } catch (error) {
-      toast.dismiss()
+      toast.dismiss(loadingToast)
       toast.error('Failed to generate AI report')
+      console.error('Report generation error:', error)
     } finally {
       setGenerating(false)
     }
@@ -92,6 +93,12 @@ const Dashboard = () => {
           <RecentInteractions interactions={analytics.recent_interactions} />
         </>
       )}
+
+      <AIReportModal 
+        isOpen={showReport}
+        onClose={() => setShowReport(false)}
+        report={aiReport}
+      />
     </div>
   )
 }

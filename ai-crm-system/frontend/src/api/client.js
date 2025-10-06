@@ -35,7 +35,13 @@ export const interactionsAPI = {
 
 // Dashboard API
 export const dashboardAPI = {
-  getAnalytics: () => api.get('/dashboard/analytics')
+  getAnalytics: () => api.get('/dashboard/analytics'),
+  generateAIReport: () => api.post('/generate-ai-report')
+}
+
+// Notifications API
+export const notificationsAPI = {
+  getAll: () => api.get('/notifications')
 }
 
 // Chatbot API
