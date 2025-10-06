@@ -88,38 +88,41 @@ const AddCustomerModal = ({ onClose, onSubmit }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Company
+                  Company *
                 </label>
                 <input
                   type="text"
                   name="company"
                   value={formData.company}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Industry
+                  Industry *
                 </label>
                 <input
                   type="text"
                   name="industry"
                   value={formData.industry}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status
+                  Status *
                 </label>
                 <select
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="lead">Lead</option>
@@ -133,13 +136,14 @@ const AddCustomerModal = ({ onClose, onSubmit }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Budget
+                  Budget *
                 </label>
                 <input
                   type="number"
                   name="budget"
                   value={formData.budget}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
