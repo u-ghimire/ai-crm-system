@@ -121,6 +121,10 @@ class LeadScoring:
     
     def _calculate_budget_score(self, budget: float) -> float:
         """Calculate score based on budget"""
+        try:
+            budget = float(budget)
+        except (TypeError, ValueError):
+            budget = 0
         if budget >= 100000:
             return 100
         elif budget >= 50000:

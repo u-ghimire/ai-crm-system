@@ -236,7 +236,7 @@ def chatbot_message():
     customer_id = data.get('customer_id')
     
     # Get chatbot response
-    response = chatbot.get_response(message)
+    response = chatbot.process_message(message)
     
     # Log interaction if customer_id provided
     if customer_id:
