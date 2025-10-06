@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 const Dashboard = () => {
   const [analytics, setAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
     fetchAnalytics()
@@ -24,6 +25,31 @@ const Dashboard = () => {
       toast.error('Failed to load dashboard data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGenerateAIReport = async () => {
+    setGenerating(true)
+    toast.loading('Generating AI-powered business report...')
+    
+    try {
+      // Simulate AI report generation
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      toast.dismiss()
+      toast.success('AI Report generated successfully!', {
+        duration: 4000,
+      })
+      
+      // In a real implementation, this would call an API endpoint
+      // const report = await dashboardAPI.generateAIReport()
+      // Then display or download the report
+      
+    } catch (error) {
+      toast.dismiss()
+      toast.error('Failed to generate AI report')
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -46,9 +72,13 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-1">Welcome back! Here's your business overview.</p>
         </div>
-        <button className="btn-primary flex items-center space-x-2">
-          <Sparkles className="w-4 h-4" />
-          <span>Generate AI Report</span>
+        <button 
+          onClick={handleGenerateAIReport}
+          disabled={generating}
+          className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Sparkles className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
+          <span>{generating ? 'Generating...' : 'Generate AI Report'}</span>
         </button>
       </motion.div>
 

@@ -1,15 +1,22 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, User, Bell } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 const Navbar = () => {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [showNotifications, setShowNotifications] = useState(false)
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
+  }
+
+  const handleNotificationClick = () => {
+    setShowNotifications(!showNotifications)
+    toast.success('Notifications feature coming soon!')
   }
 
   return (
@@ -20,7 +27,11 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center space-x-4">
-          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
+          <button 
+            onClick={handleNotificationClick}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
+            title="Notifications"
+          >
             <Bell className="w-5 h-5 text-gray-600" />
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
