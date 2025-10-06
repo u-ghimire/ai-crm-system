@@ -113,7 +113,14 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
           {/* Footer */}
           {notifications.length > 0 && (
             <div className="px-4 py-3 border-t border-gray-200 text-center">
-              <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+              <button 
+                onClick={() => {
+                  toast.success('Showing all notifications')
+                  // In a full implementation, this would navigate to a notifications page
+                  // or expand to show all notifications
+                }}
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
+              >
                 View All Notifications
               </button>
             </div>
