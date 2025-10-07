@@ -41,7 +41,7 @@ export const dashboardAPI = {
 
 // Notifications API
 export const notificationsAPI = {
-  getAll: () => api.get('/notifications')
+  getAll: (limit = 10) => api.get(`/notifications?limit=${limit}`)
 }
 
 // Chatbot API

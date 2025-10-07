@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 const NotificationsDropdown = ({ isOpen, onClose }) => {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showingAll, setShowingAll] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -14,14 +15,23 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
     }
   }, [isOpen])
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (limit = 10) => {
     try {
-      const response = await notificationsAPI.getAll()
+      setLoading(true)
+      const response = await notificationsAPI.getAll(limit)
       setNotifications(response.data.notifications || [])
     } catch (error) {
       toast.error('Failed to load notifications')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleViewAll = async () => {
+    if (!showingAll) {
+      await fetchNotifications('all')
+      setShowingAll(true)
+      toast.success('Showing all notifications')
     }
   }
 
@@ -114,14 +124,15 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
           {notifications.length > 0 && (
             <div className="px-4 py-3 border-t border-gray-200 text-center">
               <button 
-                onClick={() => {
-                  toast.success('Showing all notifications')
-                  // In a full implementation, this would navigate to a notifications page
-                  // or expand to show all notifications
-                }}
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                onClick={handleViewAll}
+                disabled={showingAll}
+                className={`text-sm font-medium transition-colors ${
+                  showingAll 
+                    ? 'text-gray-400 cursor-not-allowed' 
+                    : 'text-primary-600 hover:text-primary-700'
+                }`}
               >
-                View All Notifications
+                {showingAll ? 'Showing All Notifications' : 'View All Notifications'}
               </button>
             </div>
           )}

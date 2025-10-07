@@ -239,6 +239,10 @@ def get_notifications():
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
     
+    # Get limit parameter (default to 10, None means all)
+    limit = request.args.get('limit', '10')
+    limit = None if limit == 'all' else int(limit)
+    
     # Get recent activities and create notifications
     customers = db.get_all_customers()
     interactions = db.get_recent_interactions(20)
@@ -287,7 +291,11 @@ def get_notifications():
                 'color': 'bg-green-500'
             })
     
-    return jsonify({'notifications': notifications[:10]})  # Return top 10
+    # Apply limit
+    if limit is not None:
+        notifications = notifications[:limit]
+    
+    return jsonify({'notifications': notifications})
 
 @app.route('/api/generate-ai-report', methods=['POST', 'OPTIONS'])
 def generate_ai_report():
