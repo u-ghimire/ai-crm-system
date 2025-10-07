@@ -240,8 +240,14 @@ def get_notifications():
         return jsonify({'status': 'ok'}), 200
     
     # Get limit parameter (default to 10, None means all)
-    limit = request.args.get('limit', '10')
-    limit = None if limit == 'all' else int(limit)
+    limit_param = request.args.get('limit', '10')
+    limit = None if limit_param == 'all' else int(limit_param)
+    
+    # Determine how many of each type of notification to generate
+    # When showing all, generate more notifications; otherwise keep it limited
+    customer_limit = None if limit is None else 5
+    lead_limit = None if limit is None else 3
+    interaction_limit = None if limit is None else 5
     
     # Get recent activities and create notifications
     customers = db.get_all_customers()
@@ -250,7 +256,8 @@ def get_notifications():
     notifications = []
     
     # New customer notifications
-    for customer in customers[:5]:  # Last 5 customers
+    customer_slice = customers if customer_limit is None else customers[:customer_limit]
+    for customer in customer_slice:
         notifications.append({
             'id': f"new_customer_{customer.get('id')}",
             'type': 'new_customer',
@@ -264,7 +271,8 @@ def get_notifications():
     
     # High-score lead notifications
     high_score_leads = [c for c in customers if c.get('lead_score', 0) > 70]
-    for lead in high_score_leads[:3]:
+    lead_slice = high_score_leads if lead_limit is None else high_score_leads[:lead_limit]
+    for lead in lead_slice:
         notifications.append({
             'id': f"hot_lead_{lead.get('id')}",
             'type': 'hot_lead',
@@ -277,7 +285,8 @@ def get_notifications():
         })
     
     # Recent interaction notifications
-    for interaction in interactions[:5]:
+    interaction_slice = interactions if interaction_limit is None else interactions[:interaction_limit]
+    for interaction in interaction_slice:
         customer = db.get_customer(interaction.get('customer_id'))
         if customer:
             notifications.append({
@@ -291,7 +300,7 @@ def get_notifications():
                 'color': 'bg-green-500'
             })
     
-    # Apply limit
+    # Apply final limit if specified
     if limit is not None:
         notifications = notifications[:limit]
     
