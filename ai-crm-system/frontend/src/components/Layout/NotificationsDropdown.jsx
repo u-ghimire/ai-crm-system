@@ -11,6 +11,7 @@ const NotificationsDropdown = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
+      setShowingAll(false)  // Reset showingAll state when reopening
       fetchNotifications()
     }
   }, [isOpen])
