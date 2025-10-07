@@ -141,11 +141,54 @@ class LeadScoring:
         return self.industry_scores.get(industry.lower(), 55)
     
     def _calculate_company_size_score(self, company: str) -> float:
-        """Estimate company size score based on company name/info"""
+        """Estimate company size score using AI analysis"""
         if not company:
             return 30
         
-        # Simple heuristic based on company name patterns
+        # Try to use AI for intelligent company size estimation
+        try:
+            import openai
+            import os
+            
+            api_key = os.environ.get('OPENAI_API_KEY', 'YOUR_OPENAI_API_KEY_HERE')
+            if api_key and api_key != 'YOUR_OPENAI_API_KEY_HERE':
+                openai.api_key = api_key
+                
+                prompt = f"""Analyze the company name "{company}" and estimate its size category.
+                
+Consider factors like:
+- Company name patterns (Enterprise, Global, International, Inc, LLC, Ltd, Startup, etc.)
+- Industry recognition
+- Likely employee count
+                
+Respond with ONLY a number between 0-100 representing the company size score where:
+- 90-100: Large enterprise (1000+ employees)
+- 70-89: Medium enterprise (100-1000 employees)
+- 50-69: Small business (10-100 employees)
+- 30-49: Startup/Very small (1-10 employees)
+- 0-29: Unknown/Individual
+
+Return only the numeric score."""
+
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You are a business analyst specializing in company size estimation. Always respond with only a number between 0-100."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=10,
+                    temperature=0.3
+                )
+                
+                score_text = response.choices[0].message['content'].strip()
+                score = float(score_text)
+                return max(0, min(100, score))
+                
+        except Exception as e:
+            print(f"AI Company Size Analysis Error: {e}")
+            # Fall back to heuristic-based scoring
+        
+        # Fallback: Simple heuristic based on company name patterns
         company_lower = company.lower()
         
         if any(word in company_lower for word in ['enterprise', 'global', 'international', 'corporation']):
