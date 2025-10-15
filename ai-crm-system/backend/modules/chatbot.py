@@ -44,7 +44,7 @@ class ChatBot:
         if any(keyword in message_lower for keyword in customer_keywords):
             extracted_data = self._extract_customer_data_fallback(message)
             
-            # Validate we extracted something meaningful
+            # Check if we extracted meaningful data
             has_data = any([
                 extracted_data.get('name'),
                 extracted_data.get('email'),
@@ -71,6 +71,14 @@ class ChatBot:
                     'action': 'add_customer',
                     'extracted_data': extracted_data,
                     'response': response_text
+                }
+            else:
+                # No data extracted - ask for details instead of calling AI
+                return {
+                    'intent': 'add_customer_needs_info',
+                    'action': None,
+                    'extracted_data': {},
+                    'response': "I'd be happy to create a customer! Please provide some details like:\n• Name (e.g., 'John Doe')\n• Company (e.g., 'Acme Corp')\n• Email (e.g., 'john@example.com')\n\nFor example: 'Create a customer named John Doe from Acme Corp with email john@acme.com'"
                 }
         
         # CRM questions
@@ -225,12 +233,15 @@ Respond ONLY with JSON:
                     parts.append(f"Phone: {extracted_data['phone']}")
                 
                 response_text = f"I'll create a customer with the following details: {', '.join(parts)}"
+                action = 'add_customer'
             else:
-                response_text = "I'll create a customer with the information you provided."
+                # No data - ask for details instead of creating empty customer
+                response_text = "I'd be happy to create a customer! Please provide some details like:\n• Name (e.g., 'John Doe')\n• Company (e.g., 'Acme Corp')\n• Email (e.g., 'john@example.com')\n\nFor example: 'Create a customer named John Doe from Acme Corp with email john@acme.com'"
+                action = None
             
             return {
-                'intent': 'add_customer',
-                'action': 'add_customer',
+                'intent': 'add_customer' if has_data else 'add_customer_needs_info',
+                'action': action,
                 'extracted_data': extracted_data,
                 'response': response_text
             }
