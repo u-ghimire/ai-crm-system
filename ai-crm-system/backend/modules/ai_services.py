@@ -1,39 +1,23 @@
 # modules/ai_services.py
 """
-AI Services Module - Integrates with OpenAI GPT for intelligent insights
+AI Services Module - Integrates with a local AI model for intelligent insights
 Handles all AI-powered features including text generation and analysis
 """
 
-import os
 import json
 from typing import Dict, List, Any
-import openai
 from datetime import datetime
+from .huggingface_ai import HuggingFaceAI
 
 class AIServices:
-    def __init__(self):
-        """Initialize AI services with API key"""
-        # PLACEHOLDER: Replace with your actual OpenAI API key
-        self.api_key = os.environ.get('OPENAI_API_KEY', 'YOUR_OPENAI_API_KEY_HERE')
-        openai.api_key = self.api_key
-        self.model = "gpt-3.5-turbo"  # Can be upgraded to gpt-4 for better performance
+    def __init__(self, ai_model: HuggingFaceAI):
+        """Initialize AI services with a loaded AI model"""
+        self.ai_model = ai_model
     
-    def generate_completion(self, prompt: str, max_tokens: int = 500, temperature: float = 0.7) -> str:
+    def generate_completion(self, prompt: str, max_tokens: int = 500) -> str:
         """Generate AI completion for given prompt"""
-        try:
-            response = openai.ChatCompletion.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a helpful CRM assistant that provides business insights and customer analysis."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=max_tokens,
-                temperature=temperature
-            )
-            return response.choices[0].message['content'].strip()
-        except Exception as e:
-            print(f"AI Service Error: {e}")
-            return self._get_fallback_response(prompt)
+        # The 'max_tokens' parameter is now 'max_length' in the new implementation
+        return self.ai_model.generate(prompt, max_length=max_tokens)
     
     def generate_customer_insights(self, customer_data: Dict) -> Dict:
         """Generate AI insights for a specific customer"""

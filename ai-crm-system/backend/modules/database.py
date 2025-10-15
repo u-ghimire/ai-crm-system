@@ -130,12 +130,6 @@ class Database:
             )
         ''')
         
-        # Create default admin user if not exists
-        cursor.execute('''
-            INSERT OR IGNORE INTO users (username, password_hash, email, role)
-            VALUES (?, ?, ?, ?)
-        ''', ('admin', 'pbkdf2:sha256:260000$xyzabc$1234567890abcdef', 'admin@crm.com', 'admin'))
-        
         conn.commit()
         conn.close()
     

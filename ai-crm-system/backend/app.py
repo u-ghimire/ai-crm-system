@@ -12,6 +12,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 # Import custom modules
 from modules.database import Database
+from modules.huggingface_ai import HuggingFaceAI
 from modules.ai_services import AIServices
 from modules.lead_scoring import LeadScoring
 from modules.sales_forecasting import SalesForecasting
@@ -32,10 +33,12 @@ CORS(app,
 
 # Initialize services
 db = Database()
-ai_services = AIServices()
-lead_scorer = LeadScoring()
+# Load the AI model once and share it across modules
+ai_model = HuggingFaceAI()
+ai_services = AIServices(ai_model)
+lead_scorer = LeadScoring(ai_model)
 sales_forecaster = SalesForecasting()
-chatbot = ChatBot()
+chatbot = ChatBot(ai_model)
 workflow = WorkflowAutomation(db)
 auth = Auth()
 
@@ -239,6 +242,16 @@ def get_notifications():
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
     
+    # Get limit parameter (default to 10, None means all)
+    limit_param = request.args.get('limit', '10')
+    limit = None if limit_param == 'all' else int(limit_param)
+    
+    # Determine how many of each type of notification to generate
+    # When showing all, generate more notifications; otherwise keep it limited
+    customer_limit = None if limit is None else 5
+    lead_limit = None if limit is None else 3
+    interaction_limit = None if limit is None else 5
+    
     # Get recent activities and create notifications
     customers = db.get_all_customers()
     interactions = db.get_recent_interactions(20)
@@ -246,7 +259,8 @@ def get_notifications():
     notifications = []
     
     # New customer notifications
-    for customer in customers[:5]:  # Last 5 customers
+    customer_slice = customers if customer_limit is None else customers[:customer_limit]
+    for customer in customer_slice:
         notifications.append({
             'id': f"new_customer_{customer.get('id')}",
             'type': 'new_customer',
@@ -260,7 +274,8 @@ def get_notifications():
     
     # High-score lead notifications
     high_score_leads = [c for c in customers if c.get('lead_score', 0) > 70]
-    for lead in high_score_leads[:3]:
+    lead_slice = high_score_leads if lead_limit is None else high_score_leads[:lead_limit]
+    for lead in lead_slice:
         notifications.append({
             'id': f"hot_lead_{lead.get('id')}",
             'type': 'hot_lead',
@@ -273,7 +288,8 @@ def get_notifications():
         })
     
     # Recent interaction notifications
-    for interaction in interactions[:5]:
+    interaction_slice = interactions if interaction_limit is None else interactions[:interaction_limit]
+    for interaction in interaction_slice:
         customer = db.get_customer(interaction.get('customer_id'))
         if customer:
             notifications.append({
@@ -287,7 +303,11 @@ def get_notifications():
                 'color': 'bg-green-500'
             })
     
-    return jsonify({'notifications': notifications[:10]})  # Return top 10
+    # Apply final limit if specified
+    if limit is not None:
+        notifications = notifications[:limit]
+    
+    return jsonify({'notifications': notifications})
 
 @app.route('/api/generate-ai-report', methods=['POST', 'OPTIONS'])
 def generate_ai_report():
@@ -360,6 +380,69 @@ def chatbot_message():
     
     # Get chatbot response
     response = chatbot.process_message(message)
+    
+    # Execute actions based on intent (check both 'action' and 'next_action' for compatibility)
+    action = response.get('action') or response.get('next_action')
+    
+    if action == 'add_customer':
+        # Extract customer data from the message
+        customer_data = chatbot.extract_customer_data(message)
+        
+        # Validate that we have actual customer information (not just the word "customer")
+        has_valid_data = False
+        
+        # Check for valid name (must exist and be more than just command words)
+        if customer_data.get('name'):
+            name_lower = customer_data['name'].lower().strip()
+            # Name must be at least 2 characters and not be a command word
+            if len(name_lower) > 2 and name_lower not in ['customer', 'create', 'add', 'new', 'want', 'to']:
+                has_valid_data = True
+        
+        # Email is always valid if present
+        if customer_data.get('email') and '@' in customer_data.get('email'):
+            has_valid_data = True
+        
+        # Company is valid if it's substantial
+        if customer_data.get('company'):
+            company_lower = customer_data['company'].lower().strip()
+            # Must not be a command word or garbage
+            invalid_companies = ['customer', 'create', 'add', 'new', 'e a customer', 'a customer', 'want', 'to']
+            if company_lower not in invalid_companies and len(company_lower) > 2:
+                has_valid_data = True
+        
+        if has_valid_data:
+            try:
+                # Ensure name exists for database (required field)
+                if not customer_data.get('name'):
+                    # If we have email or company but no name, use one of them as name
+                    if customer_data.get('email'):
+                        customer_data['name'] = customer_data['email'].split('@')[0].replace('.', ' ').title()
+                    elif customer_data.get('company'):
+                        customer_data['name'] = f"Contact at {customer_data['company']}"
+                
+                # Add customer to database
+                new_customer_id = db.add_customer(customer_data)
+                
+                # Calculate lead score
+                lead_score = lead_scorer.calculate_score(customer_data)
+                db.update_customer_score(new_customer_id, lead_score)
+                
+                # Create workflow
+                workflow.create_workflow('new_lead', new_customer_id)
+                
+                # Update response with success message
+                customer_name = customer_data.get('name', customer_data.get('email', customer_data.get('company', 'Customer')))
+                response['message'] = f"✓ Customer '{customer_name}' has been successfully created! Lead score: {lead_score:.1f}"
+                response['action_executed'] = True
+                response['customer_id'] = new_customer_id
+                response['customer_data'] = customer_data
+            except Exception as e:
+                response['message'] = f"I encountered an error creating the customer: {str(e)}. Please try again with more details."
+                response['action_executed'] = False
+        else:
+            # Not enough information, ask for more details
+            response['message'] = "To create a customer, I need more details. Please provide the customer's name, email, or company. For example:\n• 'Create a customer named John Doe from Acme Corp'\n• 'Add customer John Smith, email john@example.com'\n• 'New customer from Tech Industries, contact info@tech.com'"
+            response['action_executed'] = False
     
     # Log interaction if customer_id provided
     if customer_id:
@@ -451,4 +534,4 @@ if __name__ == '__main__':
     workflow.start_scheduler()
     
     # Run the application
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)  # Disabled debug to prevent auto-restart issues
