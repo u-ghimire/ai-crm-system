@@ -35,28 +35,43 @@ class ChatBot:
         """
         message_lower = message.lower().strip()
         
-        # Customer creation patterns
-        customer_keywords = ['create customer', 'add customer', 'new customer', 'customer named']
+        # Customer creation patterns - enhanced with more variations
+        customer_keywords = ['create customer', 'add customer', 'new customer', 'customer named',
+                           'create a customer', 'add a customer', 'make a customer', 'register customer',
+                           'customer called', 'customer for', 'want to add', 'need to create',
+                           'create contact', 'add contact', 'new contact']
+        
         if any(keyword in message_lower for keyword in customer_keywords):
             extracted_data = self._extract_customer_data_fallback(message)
             
-            # Build response based on what was extracted
-            parts = []
-            if extracted_data.get('name'):
-                parts.append(f"named {extracted_data['name']}")
-            if extracted_data.get('company'):
-                parts.append(f"from {extracted_data['company']}")
-            if extracted_data.get('email'):
-                parts.append(f"with email {extracted_data['email']}")
+            # Validate we extracted something meaningful
+            has_data = any([
+                extracted_data.get('name'),
+                extracted_data.get('email'),
+                extracted_data.get('company'),
+                extracted_data.get('phone')
+            ])
             
-            response_text = "I'll create a customer " + " ".join(parts) + "!" if parts else "I'll create that customer for you!"
-            
-            return {
-                'intent': 'add_customer',
-                'action': 'add_customer',
-                'extracted_data': extracted_data,
-                'response': response_text
-            }
+            if has_data:
+                # Build response based on what was extracted
+                parts = []
+                if extracted_data.get('name'):
+                    parts.append(f"named {extracted_data['name']}")
+                if extracted_data.get('company'):
+                    parts.append(f"from {extracted_data['company']}")
+                if extracted_data.get('email'):
+                    parts.append(f"with email {extracted_data['email']}")
+                if extracted_data.get('phone'):
+                    parts.append(f"with phone {extracted_data['phone']}")
+                
+                response_text = "I'll create a customer " + " ".join(parts) + "!" if parts else "I'll create that customer for you!"
+                
+                return {
+                    'intent': 'add_customer',
+                    'action': 'add_customer',
+                    'extracted_data': extracted_data,
+                    'response': response_text
+                }
         
         # CRM questions
         if any(keyword in message_lower for keyword in ['what is crm', 'explain crm', 'tell me about crm']):
@@ -84,16 +99,36 @@ class ChatBot:
         """
         message_lower = message.lower().strip()
         
-        # Quick check for simple one-word greetings (instant response)
-        for greeting, response in self.quick_greetings.items():
-            if message_lower == greeting or message_lower == greeting + '?':
-                return {
-                    'message': response,
-                    'intent': 'greeting',
-                    'action': None,
-                    'extracted_data': {},
-                    'timestamp': datetime.now().isoformat()
-                }
+        # Flexible greeting detection (substring matching)
+        greeting_keywords = ['hi', 'hello', 'hey', 'how are you', 'good morning', 'good afternoon', 
+                           'good evening', 'howdy', 'greetings', 'what\'s up', 'whats up', 'sup']
+        
+        # Check if message is a greeting (flexible matching)
+        is_greeting = any(
+            keyword in message_lower and len(message_lower) < 50  # Short messages only
+            for keyword in greeting_keywords
+        )
+        
+        if is_greeting:
+            # Pick appropriate response based on greeting type
+            if 'how are you' in message_lower:
+                greeting_response = "I'm doing great, thank you! How can I assist you today?"
+            elif 'morning' in message_lower:
+                greeting_response = "Good morning! What can I help you with?"
+            elif 'afternoon' in message_lower:
+                greeting_response = "Good afternoon! How may I assist you?"
+            elif 'evening' in message_lower:
+                greeting_response = "Good evening! What can I do for you?"
+            else:
+                greeting_response = "Hello! How can I help you today?"
+            
+            return {
+                'message': greeting_response,
+                'intent': 'greeting',
+                'action': None,
+                'extracted_data': {},
+                'timestamp': datetime.now().isoformat()
+            }
         
         # Use AI to analyze the message intelligently
         analysis = self._analyze_with_ai(message)
@@ -155,21 +190,53 @@ Respond ONLY with JSON:
     def _fallback_analysis(self, message: str) -> Dict:
         """
         Fallback pattern-based analysis if AI fails
+        Enhanced to handle more natural language patterns
         """
         message_lower = message.lower()
         
-        # Check for customer creation
-        if any(keyword in message_lower for keyword in ['create customer', 'add customer', 'new customer', 'customer named']):
+        # Check for customer creation - expanded keyword list
+        customer_creation_keywords = [
+            'create customer', 'add customer', 'new customer', 'customer named',
+            'create a customer', 'add a customer', 'make a customer', 'register customer',
+            'customer called', 'customer for', 'want to add', 'need to create',
+            'create contact', 'add contact', 'new contact', 'register contact'
+        ]
+        
+        if any(keyword in message_lower for keyword in customer_creation_keywords):
             extracted_data = self._extract_customer_data_fallback(message)
+            
+            # Check if we extracted meaningful data
+            has_data = any([
+                extracted_data.get('name'),
+                extracted_data.get('email'),
+                extracted_data.get('company')
+            ])
+            
+            if has_data:
+                # Build detailed response
+                parts = []
+                if extracted_data.get('name'):
+                    parts.append(f"Name: {extracted_data['name']}")
+                if extracted_data.get('company'):
+                    parts.append(f"Company: {extracted_data['company']}")
+                if extracted_data.get('email'):
+                    parts.append(f"Email: {extracted_data['email']}")
+                if extracted_data.get('phone'):
+                    parts.append(f"Phone: {extracted_data['phone']}")
+                
+                response_text = f"I'll create a customer with the following details: {', '.join(parts)}"
+            else:
+                response_text = "I'll create a customer with the information you provided."
+            
             return {
                 'intent': 'add_customer',
                 'action': 'add_customer',
                 'extracted_data': extracted_data,
-                'response': f"I'll create a customer with the information you provided."
+                'response': response_text
             }
         
         # Check for CRM questions
-        if any(keyword in message_lower for keyword in ['what is crm', 'explain crm', 'tell me about crm']):
+        if any(keyword in message_lower for keyword in ['what is crm', 'explain crm', 'tell me about crm', 'about crm']):
             return {
                 'intent': 'question_about_crm',
                 'action': None,
@@ -178,7 +245,7 @@ Respond ONLY with JSON:
             }
         
         # Check for pricing questions
-        if any(keyword in message_lower for keyword in ['price', 'cost', 'pricing', 'how much']):
+        if any(keyword in message_lower for keyword in ['price', 'cost', 'pricing', 'how much', 'payment', 'subscription']):
             return {
                 'intent': 'pricing',
                 'action': None,
@@ -186,7 +253,16 @@ Respond ONLY with JSON:
                 'response': "I'd be happy to discuss our pricing options! Our CRM offers flexible plans based on your team size and needs. Would you like to schedule a call with our sales team?"
             }
         
-        # Default response
+        # Check for help/support questions
+        if any(keyword in message_lower for keyword in ['help', 'support', 'assist', 'can you help']):
+            return {
+                'intent': 'help',
+                'action': None,
+                'extracted_data': {},
+                'response': "I'm here to help! I can assist you with:\n• Creating customers and contacts\n• Answering questions about our CRM\n• Providing pricing information\n• Connecting you with our team\n\nWhat would you like to do?"
+            }
+        
+        # Default response for unrecognized input
         return {
             'intent': 'general',
             'action': None,
@@ -197,6 +273,7 @@ Respond ONLY with JSON:
     def _extract_customer_data_fallback(self, message: str) -> Dict:
         """
         Extract customer data using pattern matching (fallback method)
+        Enhanced to handle more natural language variations
         """
         extracted = {}
         
@@ -212,10 +289,13 @@ Respond ONLY with JSON:
         if phones:
             extracted['phone'] = phones[0]
         
-        # Extract name (look for "named X" or "customer X")
+        # Extract name - enhanced patterns
         name_patterns = [
             r'(?:named|called)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
             r'customer\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)',
+            r'(?:name\s+is|name:\s*)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'(?:add|create)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)',  # "create John Doe"
+            r'customer\s+for\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',  # "customer for John Doe"
         ]
         for pattern in name_patterns:
             match = re.search(pattern, message)
@@ -223,16 +303,23 @@ Respond ONLY with JSON:
                 extracted['name'] = match.group(1).strip()
                 break
         
-        # Extract company (look for "from X" or "company X")
+        # Extract company - enhanced patterns
         company_patterns = [
-            r'from\s+([A-Z][A-Za-z\s&]+?)(?:\s*,|\s+email|\s+contact|$)',
-            r'company[:\s]+([A-Z][A-Za-z\s&]+?)(?:\s*,|\s+email|$)',
+            r'from\s+([A-Z][A-Za-z\s&,\.]+?)(?:\s*with|\s*contact|\s*email|\s*phone|$)',
+            r'company[:\s]+([A-Z][A-Za-z\s&,\.]+?)(?:\s*with|\s*contact|\s*email|$)',
+            r'at\s+([A-Z][A-Za-z\s&,\.]+?)(?:\s*with|\s*contact|\s*email|$)',
+            r'works?\s+(?:at|for)\s+([A-Z][A-Za-z\s&,\.]+?)(?:\s*with|\s*contact|\s*email|$)',
         ]
         for pattern in company_patterns:
             match = re.search(pattern, message)
             if match:
-                extracted['company'] = match.group(1).strip()
-                break
+                company = match.group(1).strip()
+                # Clean up company name (remove trailing punctuation)
+                company = re.sub(r'[,\.]$', '', company).strip()
+                # Validate it's not too long or contains weird characters
+                if len(company) < 50 and not re.search(r'[<>{}]', company):
+                    extracted['company'] = company
+                    break
         
         return extracted
     
