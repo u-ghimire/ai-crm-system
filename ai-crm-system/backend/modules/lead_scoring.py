@@ -1,6 +1,6 @@
 # modules/lead_scoring.py
 """
-Lead Scoring Module - Machine Learning based lead scoring
+Lead Scoring Module - AI-powered lead scoring
 Uses multiple factors to calculate lead quality and conversion probability
 """
 
@@ -9,9 +9,12 @@ from typing import Dict, List, Any
 from datetime import datetime, timedelta
 import numpy as np
 
+from .groq_ai import GroqAI
+
 class LeadScoring:
-    def __init__(self):
+    def __init__(self, ai_model: GroqAI):
         """Initialize lead scoring system"""
+        self.ai_model = ai_model
         # Scoring weights for different factors
         self.weights = {
             'budget': 0.25,
@@ -138,6 +141,8 @@ class LeadScoring:
     
     def _calculate_industry_score(self, industry: str) -> float:
         """Calculate score based on industry"""
+        if not industry:
+            return 55  # Default score for unknown industry
         return self.industry_scores.get(industry.lower(), 55)
     
     def _calculate_company_size_score(self, company: str) -> float:
@@ -145,22 +150,13 @@ class LeadScoring:
         if not company:
             return 30
         
-        # Try to use AI for intelligent company size estimation
-        try:
-            import openai
-            import os
-            
-            api_key = os.environ.get('OPENAI_API_KEY', 'YOUR_OPENAI_API_KEY_HERE')
-            if api_key and api_key != 'YOUR_OPENAI_API_KEY_HERE':
-                openai.api_key = api_key
-                
-                prompt = f"""Analyze the company name "{company}" and estimate its size category.
-                
+        prompt = f"""Analyze the company name "{company}" and estimate its size category.
+        
 Consider factors like:
 - Company name patterns (Enterprise, Global, International, Inc, LLC, Ltd, Startup, etc.)
 - Industry recognition
 - Likely employee count
-                
+        
 Respond with ONLY a number between 0-100 representing the company size score where:
 - 90-100: Large enterprise (1000+ employees)
 - 70-89: Medium enterprise (100-1000 employees)
@@ -170,22 +166,13 @@ Respond with ONLY a number between 0-100 representing the company size score whe
 
 Return only the numeric score."""
 
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": "You are a business analyst specializing in company size estimation. Always respond with only a number between 0-100."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=10,
-                    temperature=0.3
-                )
-                
-                score_text = response.choices[0].message['content'].strip()
-                score = float(score_text)
-                return max(0, min(100, score))
-                
-        except Exception as e:
-            print(f"AI Company Size Analysis Error: {e}")
+        score_text = self.ai_model.generate(prompt, max_length=10)
+        
+        try:
+            score = float(score_text)
+            return max(0, min(100, score))
+        except (ValueError, TypeError):
+            print(f"AI Company Size Analysis Error: Could not parse '{score_text}' as a float.")
             # Fall back to heuristic-based scoring
         
         # Fallback: Simple heuristic based on company name patterns

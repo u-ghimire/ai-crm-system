@@ -4,20 +4,246 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900;
+  }
+  
+  /* Dark mode - complete theme */
+  .dark {
+    @apply bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-100;
+  }
+  
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
+  }
+  
+  * {
+    @apply antialiased;
+  }
+  
+  /* Force visible text on auth pages regardless of dark mode */
+  .auth-page label,
+  .auth-page input,
+  .auth-page select,
+  .auth-page p:not(.text-white):not(.text-red-800):not(.text-green-600),
+  .auth-page h1:not(.text-transparent),
+  .auth-page h2:not(.text-transparent),
+  .auth-page h3:not(.text-transparent) {
+    color: #111827 !important;
+  }
+  
+  .auth-page input,
+  .auth-page select {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+  
+  .auth-page input::placeholder,
+  .auth-page select::placeholder {
+    color: #9ca3af !important;
+    opacity: 1 !important;
+  }
+  
+  /* Override dark mode specifically for auth pages */
+  .dark .auth-page label,
+  .dark .auth-page input,
+  .dark .auth-page select {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+  }
+  
+  .dark .auth-page p:not(.text-white):not(.text-red-800):not(.text-green-600) {
+    color: #374151 !important;
+  }
+  
+  .dark .auth-page input::placeholder,
+  .dark .auth-page select::placeholder {
+    color: #9ca3af !important;
+    opacity: 1 !important;
+  }
+  
+  /* Ensure option elements in select are visible */
+  .auth-page option {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+  }
+  
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Animated blob background */
+  @keyframes blob {
+    0% {
+      transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+      transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
+    100% {
+      transform: translate(0px, 0px) scale(1);
+    }
+  }
+  
+  .animate-blob {
+    animation: blob 7s infinite;
+  }
+  
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  
+  .animation-delay-4000 {
+    animation-delay: 4s;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-lg shadow-md p-6;
+    @apply bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-xl transition-all duration-300;
+  }
+  
+  .dark .card {
+    @apply bg-gray-800 border-gray-700 shadow-lg text-gray-100;
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors;
+    @apply bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 active:scale-95 transition-all duration-200 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40;
+  }
+  
+  .dark .btn-primary {
+    @apply from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700;
   }
 
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-medium hover:bg-gray-300 transition-colors;
+    @apply bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 px-6 py-2.5 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 active:scale-95 transition-all duration-200 shadow-sm;
+  }
+  
+  .dark .btn-secondary {
+    @apply bg-gradient-to-r from-gray-700 to-gray-600 text-gray-200 hover:from-gray-600 hover:to-gray-500;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400;
+  }
+  
+  .dark .input-field {
+    @apply bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400;
+  }
+  
+  /* Ensure all inputs have visible text */
+  input, textarea, select {
+    color: #1f2937 !important;
+  }
+  
+  .dark input, .dark textarea, .dark select {
+    color: #f3f4f6 !important;
+    background-color: #374151 !important;
+  }
+  
+  /* Text color fixes for dark mode */
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    @apply text-gray-100;
+  }
+  
+  .dark p, .dark span, .dark label {
+    @apply text-gray-300;
+  }
+  
+  .dark a {
+    @apply text-blue-400 hover:text-blue-300;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-800;
+  }
+  
+  .badge-success {
+    @apply badge bg-green-100 text-green-800;
+  }
+  
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-800;
+  }
+  
+  .badge-danger {
+    @apply badge bg-red-100 text-red-800;
+  }
+  
+  .page-title {
+    @apply text-3xl font-bold text-gray-900 tracking-tight;
+  }
+  
+  .page-subtitle {
+    @apply text-gray-600 mt-1 text-sm;
+  }
+  
+  .section-title {
+    @apply text-xl font-semibold text-gray-900 mb-4;
+  }
+  
+  /* Loading spinner */
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .spinner {
+    @apply inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full;
+    animation: spin 0.6s linear infinite;
+  }
+  
+  /* Smooth page transitions */
+  .page-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  /* Better scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded-full hover:bg-gray-500;
+  }
+  
+  /* Focus visible for accessibility */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-500;
+  }
+  
+  /* Improved table styles */
+  table {
+    @apply w-full;
+  }
+  
+  thead {
+    @apply bg-gray-50;
+  }
+  
+  th {
+    @apply text-left py-3 px-4 text-sm font-semibold text-gray-700 uppercase tracking-wider;
+  }
+  
+  td {
+    @apply py-3 px-4 text-sm text-gray-900;
+  }
+  
+  tr {
+    @apply border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150;
   }
 }
+

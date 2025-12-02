@@ -46,23 +46,23 @@ export const formatRelativeTime = (date) => {
 
 // Get lead score color
 export const getLeadScoreColor = (score) => {
-  if (score >= 80) return 'bg-green-100 text-green-800'
-  if (score >= 60) return 'bg-blue-100 text-blue-800'
-  if (score >= 40) return 'bg-yellow-100 text-yellow-800'
-  return 'bg-red-100 text-red-800'
+  if (score >= 80) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+  if (score >= 60) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+  if (score >= 40) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+  return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
 }
 
 // Get status color
 export const getStatusColor = (status) => {
   const colors = {
-    lead: 'bg-gray-100 text-gray-800',
-    interested: 'bg-blue-100 text-blue-800',
-    qualified: 'bg-purple-100 text-purple-800',
-    hot: 'bg-red-100 text-red-800',
-    customer: 'bg-green-100 text-green-800',
-    cold: 'bg-gray-100 text-gray-600'
+    lead: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    interested: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    qualified: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+    hot: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+    customer: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+    cold: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
   }
-  return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800'
+  return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 
 // Truncate text
