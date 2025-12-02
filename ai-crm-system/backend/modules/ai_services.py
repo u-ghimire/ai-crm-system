@@ -1,17 +1,17 @@
 # modules/ai_services.py
 """
-AI Services Module - Integrates with a local AI model for intelligent insights
+AI Services Module - Integrates with Groq Cloud API for intelligent insights
 Handles all AI-powered features including text generation and analysis
 """
 
 import json
 from typing import Dict, List, Any
 from datetime import datetime
-from .huggingface_ai import HuggingFaceAI
+from .groq_ai import GroqAI
 
 class AIServices:
-    def __init__(self, ai_model: HuggingFaceAI):
-        """Initialize AI services with a loaded AI model"""
+    def __init__(self, ai_model: GroqAI):
+        """Initialize AI services with Groq AI model"""
         self.ai_model = ai_model
     
     def generate_completion(self, prompt: str, max_tokens: int = 500) -> str:
@@ -117,7 +117,7 @@ class AIServices:
         Text: {text}
         """
         
-        response = self.generate_completion(prompt, temperature=0.3)
+        response = self.generate_completion(prompt, max_tokens=200)
         
         return {
             'analysis': response,

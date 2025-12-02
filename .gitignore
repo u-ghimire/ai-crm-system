@@ -29,8 +29,39 @@ Thumbs.db
 # Environment
 .env
 .env.local
+*.env
+
+# Test files (may contain hardcoded keys)
+test_*_direct.py
+*_direct.py
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
+
+# Test scripts
+test_*.py
+populate_test_reminders.py
+
+# Documentation files (keep only essential docs)
+AI_*.md
+BUDGET_TYPE_SAFETY_TESTS.md
+CHATBOT_*.md
+COMPLETE_SCHEMA_FIXES.md
+CORE_CRM_FEATURES_IMPLEMENTATION.md
+CRM_ARCHITECTURE_IMPLEMENTATION.md
+CRM_FEATURES_IMPLEMENTATION.md
+DELETE_CUSTOMER_TEST_RESULTS.md
+EMAIL_INTEGRATION_EXPLANATION.md
+FINAL_TESTING_REPORT.md
+FRONTEND_IMPLEMENTATION_COMPLETE.md
+GROQ_SETUP.md
+ISSUES_FIXED_SUMMARY.md
+QUICK_START_CHECKLIST.md
+SCHEMA_FIXES_COMPLETE.md
+TASKS_FEATURES_COMPLETED.md
+TEST_RESULTS.md
+
+# Database files at root
+/crm_database.db

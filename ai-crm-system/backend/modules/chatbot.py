@@ -8,10 +8,10 @@ import json
 import re
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-from .huggingface_ai import HuggingFaceAI
+from .groq_ai import GroqAI
 
 class ChatBot:
-    def __init__(self, ai_model: HuggingFaceAI):
+    def __init__(self, ai_model: GroqAI):
         """Initialize chatbot with AI capabilities"""
         self.ai_model = ai_model
         
@@ -35,7 +35,7 @@ class ChatBot:
         """
         message_lower = message.lower().strip()
         
-        # Customer creation patterns - enhanced with more variations
+        # ==================== CUSTOMER CREATION ====================
         customer_keywords = ['create customer', 'add customer', 'new customer', 'customer named',
                            'create a customer', 'add a customer', 'make a customer', 'register customer',
                            'customer called', 'customer for', 'want to add', 'need to create',
@@ -81,6 +81,86 @@ class ChatBot:
                     'response': "I'd be happy to create a customer! Please provide some details like:\n• Name (e.g., 'John Doe')\n• Company (e.g., 'Acme Corp')\n• Email (e.g., 'john@example.com')\n\nFor example: 'Create a customer named John Doe from Acme Corp with email john@acme.com'"
                 }
         
+        # ==================== SEND EMAIL ====================
+        email_keywords = ['send email', 'email to', 'send message to', 'notify', 'contact customer',
+                         'reach out to', 'send a message', 'email customer', 'email']
+        
+        if any(keyword in message_lower for keyword in email_keywords):
+            # Check if this is the initial email request
+            if 'to' not in message_lower and not any(char.isdigit() for char in message):
+                # User just said "send email" without specifying recipient
+                return {
+                    'intent': 'send_email_start',
+                    'action': 'send_email_ask_customer',
+                    'extracted_data': {},
+                    'response': "Sure! What is the name of the customer you'd like to email?"
+                }
+            
+            # Extract customer name if mentioned
+            email_data = self._extract_email_data(message)
+            
+            if email_data.get('customer_name'):
+                return {
+                    'intent': 'send_email_get_customer',
+                    'action': 'send_email_lookup_customer',
+                    'extracted_data': email_data,
+                    'response': f"Looking up email for {email_data.get('customer_name')}..."
+                }
+            
+            return {
+                'intent': 'send_email',
+                'action': 'send_email',
+                'extracted_data': email_data,
+                'response': f"I'll send an email to {email_data.get('recipient', 'the customer')}!"
+            }
+        
+        # ==================== DELETE CUSTOMER ====================
+        delete_keywords = ['delete customer', 'remove customer', 'delete contact', 'remove contact',
+                          'delete a customer', 'remove a customer']
+        
+        if any(keyword in message_lower for keyword in delete_keywords):
+            # Extract customer name if mentioned
+            customer_name = None
+            name_patterns = [
+                r'(?:delete|remove)\s+(?:customer|contact)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+                r'(?:customer|contact)\s+(?:named|called)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            ]
+            
+            for pattern in name_patterns:
+                match = re.search(pattern, message)
+                if match:
+                    customer_name = match.group(1).strip()
+                    break
+            
+            if customer_name:
+                return {
+                    'intent': 'delete_customer_confirm',
+                    'action': 'delete_customer_lookup',
+                    'extracted_data': {'customer_name': customer_name},
+                    'response': f"Looking up customer {customer_name}..."
+                }
+            else:
+                # Ask for customer name
+                return {
+                    'intent': 'delete_customer_start',
+                    'action': 'delete_customer_ask_name',
+                    'extracted_data': {},
+                    'response': "Which customer would you like to delete? Please provide their name."
+                }
+        
+        # ==================== GET INSIGHTS ====================
+        insight_keywords = ['insights', 'analyze', 'report', 'statistics', 'stats about',
+                          'show me data', 'what are the trends', 'customer data', 'sales data',
+                          'how many customers', 'top leads', 'forecast']
+        
+        if any(keyword in message_lower for keyword in insight_keywords):
+            return {
+                'intent': 'get_insights',
+                'action': 'get_insights',
+                'extracted_data': {'query': message},
+                'response': "Let me analyze the data and provide insights..."
+            }
+        
         # CRM questions
         if any(keyword in message_lower for keyword in ['what is crm', 'explain crm', 'tell me about crm']):
             return {
@@ -104,18 +184,36 @@ class ChatBot:
     def process_message(self, message: str, context: Dict = None) -> Dict:
         """
         Process incoming message using AI for intelligent understanding
+        
+        Args:
+            message: The user's message
+            context: Conversation context (e.g., {'in_conversation': True, 'waiting_for': 'customer_name'})
         """
         message_lower = message.lower().strip()
         
-        # Flexible greeting detection (substring matching)
+        # If we're in the middle of a conversation, don't treat input as greetings
+        if context and context.get('in_conversation'):
+            # Return the message as-is for context-aware processing
+            return {
+                'message': message,
+                'intent': 'conversation_response',
+                'action': None,
+                'extracted_data': {'user_input': message},
+                'timestamp': datetime.now().isoformat()
+            }
+        
+        # Flexible greeting detection (substring matching) - only for standalone messages
         greeting_keywords = ['hi', 'hello', 'hey', 'how are you', 'good morning', 'good afternoon', 
                            'good evening', 'howdy', 'greetings', 'what\'s up', 'whats up', 'sup']
         
-        # Check if message is a greeting (flexible matching)
-        is_greeting = any(
-            keyword in message_lower and len(message_lower) < 50  # Short messages only
-            for keyword in greeting_keywords
-        )
+        # Check if message is a greeting - must be exact or very short
+        is_greeting = False
+        if len(message_lower) < 20:  # Only check short messages
+            is_greeting = any(
+                message_lower == keyword or 
+                (message_lower.startswith(keyword) and len(message_lower) - len(keyword) <= 5)
+                for keyword in greeting_keywords
+            )
         
         if is_greeting:
             # Pick appropriate response based on greeting type
@@ -165,8 +263,8 @@ Respond ONLY with JSON:
 {{"intent":"add_customer|question|greeting|general","action":"add_customer|null","name":"name or null","email":"email or null","company":"company or null","response":"brief response"}}"""
         
         try:
-            # Get AI analysis with shorter max length for speed
-            ai_response = self.ai_model.generate(prompt, max_length=150)
+            # Get AI analysis with increased tokens for better responses
+            ai_response = self.ai_model.generate(prompt, max_length=300)
             
             # Try to parse JSON from response
             json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', ai_response, re.DOTALL)
@@ -273,13 +371,34 @@ Respond ONLY with JSON:
                 'response': "I'm here to help! I can assist you with:\n• Creating customers and contacts\n• Answering questions about our CRM\n• Providing pricing information\n• Connecting you with our team\n\nWhat would you like to do?"
             }
         
-        # Default response for unrecognized input
-        return {
-            'intent': 'general',
-            'action': None,
-            'extracted_data': {},
-            'response': "I'm here to help! I can assist you with creating customers, answering questions about CRM, or connecting you with our team. What would you like to know?"
-        }
+        # Default: Use AI for unrecognized input (intelligent fallback)
+        try:
+            # Use Groq AI for natural, intelligent responses
+            prompt = f"""You are a helpful CRM assistant. The user asked: "{message}"
+
+Respond naturally and helpfully. If it's a general question, answer it. If it's about CRM/sales/business, provide relevant insights. If you can't answer (like weather), politely explain you're a CRM assistant.
+
+Keep response under 100 words."""
+            
+            ai_response = self.ai_model.generate(prompt, max_length=200)
+            
+            # Clean up any thinking tags
+            ai_response = re.sub(r'<think>.*?</think>', '', ai_response, flags=re.DOTALL).strip()
+            
+            return {
+                'intent': 'general_ai',
+                'action': None,
+                'extracted_data': {},
+                'response': ai_response if ai_response else "I'm here to help! I can assist you with creating customers, answering questions about CRM, or connecting you with our team. What would you like to know?"
+            }
+        except Exception as e:
+            print(f"AI fallback error: {e}")
+            return {
+                'intent': 'general',
+                'action': None,
+                'extracted_data': {},
+                'response': "I'm here to help! I can assist you with creating customers, answering questions about CRM, or connecting you with our team. What would you like to know?"
+            }
     
     def _extract_customer_data_fallback(self, message: str) -> Dict:
         """
@@ -334,16 +453,68 @@ Respond ONLY with JSON:
         
         return extracted
     
+    def _extract_email_data(self, message: str) -> Dict:
+        """
+        Extract email recipient and content from message
+        """
+        extracted = {'recipient': None, 'customer_name': None, 'subject': 'CRM Email', 'body': None}
+        
+        # Extract email address
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        emails = re.findall(email_pattern, message)
+        if emails:
+            extracted['recipient'] = emails[0]
+        
+        # Extract customer name patterns (e.g., "send email to John Doe" or just "John Doe")
+        name_patterns = [
+            r'(?:email|send|notify|contact|to)\s+(?:to\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'(?:customer|client)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
+            r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)$',  # Just a name by itself
+        ]
+        
+        for pattern in name_patterns:
+            match = re.search(pattern, message)
+            if match:
+                name = match.group(1).strip()
+                # Validate it's a reasonable name
+                if 2 < len(name) < 50 and not any(word in name.lower() for word in ['email', 'send', 'message']):
+                    extracted['customer_name'] = name
+                    break
+        
+        # Extract subject if mentioned
+        if 'subject:' in message.lower():
+            subject_match = re.search(r'subject:\s*([^\n]+)', message, re.IGNORECASE)
+            if subject_match:
+                extracted['subject'] = subject_match.group(1).strip()
+        
+        # The message content could be the body
+        extracted['body'] = message
+        
+        return extracted
+        for pattern in name_patterns:
+            match = re.search(pattern, message)
+            if match:
+                if not extracted['recipient']:  # Only if we don't have an email
+                    extracted['recipient'] = match.group(1).strip()
+                break
+        
+        # Extract subject if mentioned
+        if 'subject:' in message.lower():
+            subject_match = re.search(r'subject:\s*([^\n]+)', message, re.IGNORECASE)
+            if subject_match:
+                extracted['subject'] = subject_match.group(1).strip()
+        
+        # The rest of the message can be the body (simplified)
+        extracted['body'] = message
+        
+        return extracted
+    
     def extract_customer_data(self, message: str) -> Dict:
         """
         Public method to extract customer data (used by app.py)
+        ALWAYS uses fast pattern matching - NEVER calls AI to avoid timeouts
         """
-        # Try AI analysis first
-        analysis = self._analyze_with_ai(message)
-        if analysis.get('extracted_data'):
-            return analysis['extracted_data']
-        
-        # Fallback to pattern matching
+        # Use pattern matching directly - fast and reliable
         return self._extract_customer_data_fallback(message)
     
     def _determine_next_action(self, message: str, intent: str) -> Optional[str]:
@@ -369,6 +540,6 @@ Respond ONLY with JSON:
         if len(history) > 3:
             messages_text = "\n".join([f"- {msg['message']}" for msg in history[-10:]])
             prompt = f"Summarize this customer conversation:\n{messages_text}\n\nSummary:"
-            summary += self.ai_model.generate(prompt, max_length=100)
+            summary += self.ai_model.generate(prompt, max_length=200)
         
         return summary

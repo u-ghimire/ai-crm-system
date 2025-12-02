@@ -1,0 +1,413 @@
+"""
+Enhanced Deals/Pipeline Management Module
+Handles deal/opportunity CRUD and pipeline operations
+"""
+
+from flask import Blueprint, request, jsonify, session
+from .db_helper import get_db
+from functools import wraps
+from datetime import datetime
+
+deals_bp = Blueprint('deals', __name__)
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'message': 'Authentication required'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+@deals_bp.route('/api/deals', methods=['GET'])
+@login_required
+def get_deals():
+    """Get all deals with filtering and pipeline view"""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Get query parameters
+        stage = request.args.get('stage', '')
+        customer_id = request.args.get('customer_id', type=int)
+        company_id = request.args.get('company_id', type=int)
+        assigned_to = request.args.get('assigned_to', type=int)
+        
+        query = '''
+            SELECT o.*, 
+                   c.name as customer_name,
+                   u.username as assigned_to_name,
+                   comp.name as company_name
+            FROM opportunities o
+            LEFT JOIN customers c ON o.customer_id = c.id
+            LEFT JOIN users u ON o.assigned_to = u.id
+            LEFT JOIN companies comp ON o.company_id = comp.id
+            WHERE 1=1
+        '''
+        params = []
+        
+        if stage:
+            query += ' AND o.deal_stage = ?'
+            params.append(stage)
+        
+        if customer_id:
+            query += ' AND o.customer_id = ?'
+            params.append(customer_id)
+        
+        if company_id:
+            query += ' AND o.company_id = ?'
+            params.append(company_id)
+        
+        if assigned_to:
+            query += ' AND o.assigned_to = ?'
+            params.append(assigned_to)
+        
+        query += ' ORDER BY o.created_at DESC'
+        
+        cursor.execute(query, params)
+        deals = []
+        for row in cursor.fetchall():
+            deals.append({
+                'id': row[0],
+                'name': row[1],
+                'customer_id': row[2],
+                'value': row[3],
+                'stage': row[4],
+                'assigned_to': row[5],
+                'created_at': row[6],
+                'updated_at': row[7],
+                'deal_stage': row[8],
+                'probability': row[9],
+                'expected_close_date': row[10],
+                'actual_close_date': row[11],
+                'deal_type': row[12],
+                'deal_source': row[13],
+                'notes': row[14],
+                'lost_reason': row[15],
+                'company_id': row[16],
+                'customer_name': row[17],
+                'assigned_to_name': row[18],
+                'company_name': row[19]
+            })
+        
+        return jsonify({'success': True, 'deals': deals})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@deals_bp.route('/api/deals/pipeline', methods=['GET'])
+@login_required
+def get_pipeline():
+    """Get pipeline view grouped by stages"""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Get all deal stages
+        cursor.execute('''
+            SELECT name, order_index, probability
+            FROM deal_stages
+            WHERE is_active = 1
+            ORDER BY order_index
+        ''')
+        
+        stages = []
+        for row in cursor.fetchall():
+            stage_name = row[0]
+            
+            # Get deals for this stage
+            cursor.execute('''
+                SELECT o.id, o.title, o.value, o.probability,
+                       o.expected_close_date, c.name as customer_name,
+                       u.username as assigned_to_name, comp.name as company_name
+                FROM opportunities o
+                LEFT JOIN customers c ON o.customer_id = c.id
+                LEFT JOIN users u ON o.assigned_to = u.id
+                LEFT JOIN companies comp ON o.company_id = comp.id
+                WHERE o.deal_stage = ?
+                ORDER BY o.created_at DESC
+            ''', (stage_name,))
+            
+            deals = []
+            total_value = 0
+            for deal_row in cursor.fetchall():
+                deal_value = deal_row[2] or 0
+                total_value += deal_value
+                deals.append({
+                    'id': deal_row[0],
+                    'name': deal_row[1],
+                    'value': deal_value,
+                    'probability': deal_row[3],
+                    'expected_close_date': deal_row[4],
+                    'customer_name': deal_row[5],
+                    'assigned_to_name': deal_row[6],
+                    'company_name': deal_row[7]
+                })
+            
+            stages.append({
+                'name': stage_name,
+                'order_index': row[1],
+                'default_probability': row[2],
+                'deals': deals,
+                'deal_count': len(deals),
+                'total_value': total_value
+            })
+        
+        return jsonify({'success': True, 'pipeline': stages})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@deals_bp.route('/api/deals/<int:deal_id>', methods=['GET'])
+@login_required
+def get_deal(deal_id):
+    """Get a specific deal with details"""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            SELECT o.*, 
+                   c.name as customer_name, c.email as customer_email,
+                   u.username as assigned_to_name,
+                   comp.name as company_name
+            FROM opportunities o
+            LEFT JOIN customers c ON o.customer_id = c.id
+            LEFT JOIN users u ON o.assigned_to = u.id
+            LEFT JOIN companies comp ON o.company_id = comp.id
+            WHERE o.id = ?
+        ''', (deal_id,))
+        
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'success': False, 'message': 'Deal not found'}), 404
+        
+        deal = {
+            'id': row[0],
+            'name': row[1],
+            'customer_id': row[2],
+            'value': row[3],
+            'stage': row[4],
+            'assigned_to': row[5],
+            'created_at': row[6],
+            'updated_at': row[7],
+            'deal_stage': row[8],
+            'probability': row[9],
+            'expected_close_date': row[10],
+            'actual_close_date': row[11],
+            'deal_type': row[12],
+            'deal_source': row[13],
+            'notes': row[14],
+            'lost_reason': row[15],
+            'company_id': row[16],
+            'customer_name': row[17],
+            'customer_email': row[18],
+            'assigned_to_name': row[19],
+            'company_name': row[20]
+        }
+        
+        # Get associated tasks
+        cursor.execute('''
+            SELECT id, title, due_date, status, priority
+            FROM tasks
+            WHERE opportunity_id = ?
+            ORDER BY due_date ASC
+        ''', (deal_id,))
+        
+        deal['tasks'] = []
+        for task_row in cursor.fetchall():
+            deal['tasks'].append({
+                'id': task_row[0],
+                'title': task_row[1],
+                'due_date': task_row[2],
+                'status': task_row[3],
+                'priority': task_row[4]
+            })
+        
+        return jsonify({'success': True, 'deal': deal})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@deals_bp.route('/api/deals', methods=['POST'])
+@login_required
+def create_deal():
+    """Create a new deal"""
+    try:
+        data = request.json
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            INSERT INTO opportunities (
+                title, customer_id, value, stage, 
+                deal_stage, probability, expected_close_date,
+                deal_type, deal_source, notes, company_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            data.get('title', data.get('name')),  # Support both title and name
+            data.get('customer_id'),
+            data.get('value', 0),
+            data.get('stage', 'lead'),
+            data.get('deal_stage', 'Lead'),
+            data.get('probability', 10.0),
+            data.get('expected_close_date'),
+            data.get('deal_type', 'new_business'),
+            data.get('deal_source'),
+            data.get('notes'),
+            data.get('company_id')
+        ))
+        
+        deal_id = cursor.lastrowid
+        db.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Deal created successfully',
+            'deal_id': deal_id
+        }), 201
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@deals_bp.route('/api/deals/<int:deal_id>', methods=['PUT'])
+@login_required
+def update_deal(deal_id):
+    """Update a deal"""
+    try:
+        data = request.json
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            UPDATE opportunities SET
+                title = ?, customer_id = ?, value = ?, stage = ?,
+                deal_stage = ?, probability = ?,
+                expected_close_date = ?, actual_close_date = ?,
+                deal_type = ?, deal_source = ?, notes = ?,
+                lost_reason = ?, company_id = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            data.get('title', data.get('name')),  # Support both title and name
+            data.get('customer_id'),
+            data.get('value'),
+            data.get('stage'),
+            data.get('deal_stage'),
+            data.get('probability'),
+            data.get('expected_close_date'),
+            data.get('actual_close_date'),
+            data.get('deal_type'),
+            data.get('deal_source'),
+            data.get('notes'),
+            data.get('lost_reason'),
+            data.get('company_id'),
+            deal_id
+        ))
+        
+        db.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Deal updated successfully'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@deals_bp.route('/api/deals/<int:deal_id>/stage', methods=['PUT'])
+@login_required
+def update_deal_stage(deal_id):
+    """Update deal stage (for drag & drop in pipeline)"""
+    try:
+        data = request.json
+        new_stage = data.get('stage')
+        
+        if not new_stage:
+            return jsonify({'success': False, 'message': 'Stage is required'}), 400
+        
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Get stage probability
+        cursor.execute('SELECT probability FROM deal_stages WHERE name = ?', (new_stage,))
+        stage_row = cursor.fetchone()
+        
+        if not stage_row:
+            return jsonify({'success': False, 'message': 'Invalid stage'}), 400
+        
+        probability = stage_row[0]
+        
+        # Update deal
+        update_data = {
+            'deal_stage': new_stage,
+            'probability': probability
+        }
+        
+        # If moving to Closed Won, set actual close date
+        if new_stage == 'Closed Won':
+            update_data['actual_close_date'] = datetime.now().strftime('%Y-%m-%d')
+        
+        cursor.execute('''
+            UPDATE opportunities SET
+                deal_stage = ?,
+                probability = ?,
+                actual_close_date = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            update_data['deal_stage'],
+            update_data['probability'],
+            update_data.get('actual_close_date'),
+            deal_id
+        ))
+        
+        db.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Deal stage updated successfully'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@deals_bp.route('/api/deals/<int:deal_id>', methods=['DELETE'])
+@login_required
+def delete_deal(deal_id):
+    """Delete a deal"""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('DELETE FROM opportunities WHERE id = ?', (deal_id,))
+        db.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Deal deleted successfully'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@deals_bp.route('/api/deal-stages', methods=['GET'])
+@login_required
+def get_deal_stages():
+    """Get all deal stages"""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            SELECT id, name, order_index, probability, is_active
+            FROM deal_stages
+            WHERE is_active = 1
+            ORDER BY order_index
+        ''')
+        
+        stages = []
+        for row in cursor.fetchall():
+            stages.append({
+                'id': row[0],
+                'name': row[1],
+                'order_index': row[2],
+                'probability': row[3],
+                'is_active': row[4]
+            })
+        
+        return jsonify({'success': True, 'stages': stages})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

@@ -1,6 +1,6 @@
 # modules/lead_scoring.py
 """
-Lead Scoring Module - Machine Learning based lead scoring
+Lead Scoring Module - AI-powered lead scoring
 Uses multiple factors to calculate lead quality and conversion probability
 """
 
@@ -9,10 +9,10 @@ from typing import Dict, List, Any
 from datetime import datetime, timedelta
 import numpy as np
 
-from .huggingface_ai import HuggingFaceAI
+from .groq_ai import GroqAI
 
 class LeadScoring:
-    def __init__(self, ai_model: HuggingFaceAI):
+    def __init__(self, ai_model: GroqAI):
         """Initialize lead scoring system"""
         self.ai_model = ai_model
         # Scoring weights for different factors
@@ -141,6 +141,8 @@ class LeadScoring:
     
     def _calculate_industry_score(self, industry: str) -> float:
         """Calculate score based on industry"""
+        if not industry:
+            return 55  # Default score for unknown industry
         return self.industry_scores.get(industry.lower(), 55)
     
     def _calculate_company_size_score(self, company: str) -> float:

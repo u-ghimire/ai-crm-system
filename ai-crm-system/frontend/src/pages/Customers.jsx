@@ -53,8 +53,8 @@ const Customers = () => {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
-          <p className="text-gray-600 mt-1">Manage your customer relationships</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Customers</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your customer relationships</p>
         </div>
         <button 
           onClick={() => setShowAddModal(true)}
